@@ -1,0 +1,3 @@
+2. batch normalization :
+  variation of weight scales used in parameters initialization with and without batch normalization.
+  variation of batch size with and without batch normalization.
