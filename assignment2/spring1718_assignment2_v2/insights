@@ -1,3 +1,11 @@
 2. batch normalization :
   variation of weight scales used in parameters initialization with and without batch normalization.
   variation of batch size with and without batch normalization.
+    - batchnorm performance varies with variation in the batch size.
+    - batchnorm under-performs as compared to baseline model if batch size is small.
+    - batchnorm performance increases with increasing batch size.
+    - But the dependency on batch size makes it less useful in complex networks which have a cap on
+      the input batch size due to hardware limitations.
+    - To remove dependency of batch size on batch norm performance, an alternative to batch norm,
+      named, 'Layer norm' (https://arxiv.org/pdf/1607.06450.pdf) can be used.
+      Layer Normalization can also be used in Recurrent Neural Network unlike Batch Norm which can't.

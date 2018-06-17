@@ -182,24 +182,26 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Referencing the original paper (https://arxiv.org/abs/1502.03167)   #
         # might prove to be helpful.                                          #
         #######################################################################
-        sample_mean = np.mean(x, axis=0)
-        sample_var = np.var(x, axis=0)
-
-        x_norm = (x - sample_mean) / (np.sqrt(sample_var + eps))
-        out = gamma * x_norm + beta
-
-        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
-        running_var = momentum * running_var + (1 - momentum) * sample_var
-
-        cache = (x_norm, gamma, sample_var, eps)
+        # sample_mean = np.mean(x, axis=0)
+        # sample_var = np.var(x, axis=0)
+        #
+        # x_norm = (x - sample_mean) / (np.sqrt(sample_var + eps))
+        # out = gamma * x_norm + beta
+        #
+        # running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+        # running_var = momentum * running_var + (1 - momentum) * sample_var
+        #
+        # cache = (x_norm, gamma, sample_var, eps)
         # --------------------------------------------------------------------
         # Reference for Computational graph implementation: (https://kratzert.github.io/2016/02/12/understanding-the-gradient-flow-through-the-batch-normalization-layer.html)
         # Reference for equations implementation: (https://kevinzakka.github.io/2016/09/14/batch_normalization/)
 
         #step1: calculate mean
+        # mu: (D,)
         mu = 1./N * np.sum(x, axis = 0)
 
         #step2: subtract mean vector of every trainings example
+        # x: (N, D)
         xmu = x - mu
 
         #step3: following the lower branch - calculation denominator
@@ -225,6 +227,9 @@ def batchnorm_forward(x, gamma, beta, bn_param):
 
         #store intermediate
         cache = (xhat,gamma,xmu,ivar,sqrtvar,var,eps)
+
+        running_mean = momentum * running_mean + (1 - momentum) * mu
+        running_var = momentum * running_var + (1 - momentum) * var
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -395,7 +400,51 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # transformations you could perform, that would enable you to copy over   #
     # the batch norm code and leave it almost unchanged?                      #
     ###########################################################################
-    pass
+    N, D = x.shape
+    # Changes made as compared to Batch Normalization
+    # step1 :
+    #     axis 0->1
+    #     1./N -> 1./D
+    # step2:
+    #     reshaped 'mu'
+    # step4:
+    #     axis 0->1
+    #     1./N -> 1./D
+    # step7:
+    #     reshaped 'ivar'
+    # No need of storing running_mean and running_var for each and every layer
+    # This is because train and test time implementations are same in layer norm
+
+    #step1: calculate mean
+    mu = 1./D * np.sum(x, axis = 1)
+
+    #step2: subtract mean vector of every trainings example
+    # x: (N, D)
+    xmu = x - np.reshape(mu, (N,1))
+
+    #step3: following the lower branch - calculation denominator
+    sq = xmu ** 2
+
+    #step4: calculate variance
+    var = 1./D * np.sum(sq, axis = 1)
+
+    #step5: add eps for numerical stability, then sqrt
+    sqrtvar = np.sqrt(var + eps)
+
+    #step6: invert sqrtwar
+    ivar = 1./sqrtvar
+
+    #step7: execute normalization
+    xhat = xmu * np.reshape(ivar, (N,1))
+
+    #step8: Nor the two transformation steps
+    gammax = gamma * xhat
+
+    #step9
+    out = gammax + beta
+
+    #store intermediate
+    cache = (xhat,gamma,xmu,ivar,sqrtvar,var,eps)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -426,7 +475,52 @@ def layernorm_backward(dout, cache):
     # implementation of batch normalization. The hints to the forward pass    #
     # still apply!                                                            #
     ###########################################################################
-    pass
+    # Changes made as compared to Batch Norm backward pass implementation
+    # step9 and step8: no axis change as gamma and beta shapes are same in both batch norm and layer norm.
+    # step7: reshape 'ivar', axis = 0->1
+    # step4: reshape 'dvar', 1./N -> 1./D
+    # step1: reshape 'dmu', 1./N -> 1./D
+
+
+    xhat,gamma,xmu,ivar,sqrtvar,var,eps = cache
+
+    # get the dimensions of input/output
+    N,D = dout.shape
+
+    # step9
+    dbeta = np.sum(dout, axis=0)
+    dgammax = dout # not required. used for increasing understanding
+
+    # step8
+    dgamma = np.sum(dgammax * xhat, axis=0)
+    dxhat = dgammax * gamma
+
+    # step7
+    divar = np.sum(dxhat * xmu, axis=1)
+    dxmu1 = dxhat * np.reshape(ivar, (N,1))
+
+    # step6
+    dsqrtvar = -1. / (sqrtvar ** 2) * divar
+
+    # step5
+    dvar = 0.5 * 1./np.sqrt(var + eps) * dsqrtvar
+
+    #step4
+    dsq = 1. /D * np.ones((N,D)) * np.reshape(dvar, (N,1))
+
+    #step3
+    dxmu2 = 2 * xmu * dsq
+
+    #step2
+    dx1 = (dxmu1 + dxmu2)
+    dmu = -1 * np.sum(dxmu1+dxmu2, axis=1)
+
+    #step1
+    dx2 = 1. /D * np.ones((N,D)) * np.reshape(dmu, (N,1))
+
+    #step0
+    dx = dx1 + dx2
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################

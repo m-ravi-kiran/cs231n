@@ -349,19 +349,40 @@ class FullyConnectedNet(object):
         beta = self.params['beta'+str(i)]
 
         a_out, a_cache = affine_forward(scores, W, b)
-        # self.bn_params follow zero based numbering
-        bn_out, bn_cache = batchnorm_forward(a_out, gamma, beta, self.bn_params[i-1])
-        r_out, r_cache = relu_forward(bn_out)
+        if self.normalization == 'batchnorm':
+            # self.bn_params follow zero based numbering
+            bn_out, bn_cache = batchnorm_forward(a_out, gamma, beta, self.bn_params[i-1])
+            norm_out, norm_cache = bn_out, bn_cache
+        elif self.normalization == 'layernorm':
+            ln_out, ln_cache = layernorm_forward(a_out, gamma, beta, self.bn_params[i-1])
+            norm_out, norm_cache = ln_out, ln_cache
+        else:
+            raise ValueError('invalid normalization type : {}'.format(self.normalization))
+        r_out, r_cache = relu_forward(norm_out)
         out = r_out
-        cache = (a_cache, bn_cache, r_cache)
+        cache = (a_cache, norm_cache, r_cache)
 
         return out, cache
 
     def affine_norm_relu_backward(self, dout, cache):
-
-        a_cache, bn_cache, r_cache = cache
+        """
+        r_b_out = relu backward pass output
+        r_cache = relu cache
+        bn_b_out = batchnorm backward pass output
+        ln_b_out = layernorm backward pass output
+        n_b_out = normalizaton backward pass output
+        """
+        a_cache, norm_cache, r_cache = cache
         r_b_out = relu_backward(dout, r_cache)
-        bn_b_out, dgamma, dbeta = batchnorm_backward_alt(r_b_out, bn_cache)
-        dout, dw, db = affine_backward(bn_b_out, a_cache)
+        if self.normalization == 'batchnorm':
+            bn_b_out, dgamma, dbeta = batchnorm_backward_alt(r_b_out, norm_cache)
+            n_b_out = bn_b_out
+        elif self.normalization == 'layernorm':
+            ln_b_out, dgamma, dbeta = layernorm_backward(r_b_out, norm_cache)
+            n_b_out = ln_b_out
+        else:
+            raise ValueError('invalid normalization type : {}'.format(self.normalization))
+
+        dout, dw, db = affine_backward(n_b_out, a_cache)
 
         return dout, dw, db, dgamma, dbeta

@@ -165,7 +165,7 @@ class Solver(object):
         for p in self.model.params:
             d = {k: v for k, v in self.optim_config.items()}
             self.optim_configs[p] = d
-        print(self.optim_configs)
+        # print(self.optim_configs)
 
 
     def _step(self):
