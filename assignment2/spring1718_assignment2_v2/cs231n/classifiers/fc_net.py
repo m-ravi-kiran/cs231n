@@ -281,10 +281,13 @@ class FullyConnectedNet(object):
             else:
                 if self.normalization:
                     scores, cache = self.affine_norm_relu_forward(scores, i)
-                elif self.use_dropout:
-                    pass
                 else:
                     scores, cache = affine_relu_forward(scores, W, b)
+                if self.use_dropout:
+                    scores, dropout_cache = dropout_forward(scores, self.dropout_param)
+                    cache_list = list(cache)
+                    cache_list.append(dropout_cache)
+                    cache = tuple(cache_list)
             caches.append(cache)
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -322,13 +325,12 @@ class FullyConnectedNet(object):
             if i == layers_count:
                 dout, dw, db = affine_backward(dout, caches[i-1])
             else:
-                if self.normalization:
+                if self.use_dropout:
+                    dout, dw, db = self.affine_relu_dropout_backward(dout, caches[i-1])
+                elif self.normalization:
                     dout, dw, db, dgamma, dbeta = self.affine_norm_relu_backward(dout, caches[i-1])
-
                     grads['gamma'+str(i)] = dgamma
                     grads['beta'+str(i)] = dbeta
-                elif self.use_dropout:
-                    pass
                 else:
                     dout, dw, db = affine_relu_backward(dout, caches[i-1])
             dw += reg * self.params['W'+str(i)]
@@ -386,3 +388,14 @@ class FullyConnectedNet(object):
         dout, dw, db = affine_backward(n_b_out, a_cache)
 
         return dout, dw, db, dgamma, dbeta
+
+    def affine_relu_dropout_backward(self, dout, cache):
+        """
+        d_cache = dropout cache
+        """
+        a_cache, r_cache, dropout_cache = cache
+        dropout_out = dropout_backward(dout, dropout_cache)
+        r_b_out = relu_backward(dropout_out, r_cache)
+        dout, dw, db = affine_backward(r_b_out, a_cache)
+
+        return dout, dw, db
