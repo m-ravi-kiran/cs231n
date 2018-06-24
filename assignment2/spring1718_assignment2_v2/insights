@@ -1,4 +1,4 @@
-2. batch normalization :
+2. Batch normalization :
   variation of weight scales used in parameters initialization with and without batch normalization.
   variation of batch size with and without batch normalization.
     - batchnorm performance varies with variation in the batch size.
@@ -9,3 +9,23 @@
     - To remove dependency of batch size on batch norm performance, an alternative to batch norm,
       named, 'Layer norm' (https://arxiv.org/pdf/1607.06450.pdf) can be used.
       Layer Normalization can also be used in Recurrent Neural Network unlike Batch Norm which can't.
+
+3. Layer Normalization
+  Instead of normalizing over the batch, we normalize over the features. In other words, when using
+  Layer Normalization, each feature vector corresponding to a single datapoint is normalized based on
+  the sum of all terms within that feature vector.
+  eg: Incase of an image input to a Neural Network, each pixel is considered as a independent feature.
+      So the mean and variance of all these features of a data point is calculated. Using these mean and
+      variance the data point is normalized.
+
+4. Spatial Batch Normalization (Batch Normalization for CNNs)
+  Things are normalized along each channel / feature map because the channels at a specific layer location
+  are produced by a single type of feature. And we are trying to normalize data produced by each feature
+  across all the images and the size of each feature map.
+
+5. Group Normalization
+  Similar to Layer Normalization but as the contribution of each and every feature is different in CNN,
+  We create G groups and do Layer Normalization stuff independently to each of the these groups.
+  Even though an assumption of equal contribution is still being made within each group, the authors
+  of Group Normalization hypothesize that this is not as problematic, as innate grouping arises within
+  features for visual recognition.

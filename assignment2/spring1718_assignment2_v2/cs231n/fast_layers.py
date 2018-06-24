@@ -1,5 +1,10 @@
 from __future__ import print_function
 import numpy as np
+# Adding this two lines below fixed some cython issue
+# https://stackoverflow.com/questions/43281594/import-not-working-when-file-is-located-in-same-directory-and-calling-script/46570205#46570205
+import pyximport
+pyximport.install()
+#-------------------
 try:
     from cs231n.im2col_cython import col2im_cython, im2col_cython
     from cs231n.im2col_cython import col2im_6d_cython

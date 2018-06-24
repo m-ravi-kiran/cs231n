@@ -30,7 +30,7 @@ class ThreeLayerConvNet(object):
         - hidden_dim: Number of units to use in the fully-connected hidden layer
         - num_classes: Number of scores to produce from the final affine layer.
         - weight_scale: Scalar giving standard deviation for random initialization
-          of weights.
+          of weightsself.
         - reg: Scalar giving L2 regularization strength
         - dtype: numpy datatype to use for computation.
         """
@@ -51,9 +51,21 @@ class ThreeLayerConvNet(object):
         # IMPORTANT: For this assignment, you can assume that the padding          #
         # and stride of the first convolutional layer are chosen so that           #
         # **the width and height of the input are preserved**. Take a look at      #
-        # the start of the loss() function to see how that happens.                #                           
+        # the start of the loss() function to see how that happens.                #
         ############################################################################
-        pass
+        C, H, W = input_dim
+
+        # As the width and height of the input are preserved post convolution,
+        # after flattening the max pool layer output the input size to the hidden layer is
+        # (H/4)*(W/4)*num_filters
+        max_pool_flat_dim = int((H/2)*(W/2)*num_filters)
+        self.params['W1'] = weight_scale * np.random.randn(num_filters, C, filter_size, filter_size)
+        self.params['b1'] = np.zeros([num_filters])
+        self.params['W2'] = weight_scale * np.random.rand(max_pool_flat_dim, hidden_dim)
+        self.params['b2'] = np.zeros([hidden_dim])
+        self.params['W3'] = weight_scale * np.random.rand(hidden_dim, num_classes)
+        self.params['b3'] = np.zeros([num_classes])
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -89,7 +101,16 @@ class ThreeLayerConvNet(object):
         # Remember you can use the functions defined in cs231n/fast_layers.py and  #
         # cs231n/layer_utils.py in your implementation (already imported).         #
         ############################################################################
-        pass
+        N, C, H, W = X.shape
+        max_pool_out, max_pool_out_cache = conv_relu_pool_forward(X, W1, b1, conv_param, pool_param)
+        # max_pool_flat = np.reshape(max_pool_out, (N, -1))
+        # print(max_pool_flat.shape)
+        # The above two lines are commented because the flattening of the max pool
+        # output is already being done in affine_forward() in layers.py implemented inside
+        # affine_relu_forward() below.
+        hidden_layer_out, hidden_layer_out_cache = affine_relu_forward(max_pool_out, W2, b2)
+        output_layer_out, output_layer_cache = affine_forward(hidden_layer_out, W3, b3)
+        scores = output_layer_out
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -108,7 +129,20 @@ class ThreeLayerConvNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+
+        data_loss, dout = softmax_loss(scores, y)
+        reg_loss = 0.5 * self.reg * (np.sum(W1**2) + np.sum(W2**2) + np.sum(W3**2))
+        loss = data_loss + reg_loss
+
+        # conv - relu - 2x2 max pool - affine - relu - affine - softmax
+        dout, dW3, db3 = affine_backward(dout, output_layer_cache)
+        dout, dW2, db2 = affine_relu_backward(dout, hidden_layer_out_cache)
+        dout, dW1, db1 = conv_relu_pool_backward(dout, max_pool_out_cache)
+
+        grads['W1'], grads['b1'] = dW1, db1
+        grads['W2'], grads['b2'] = dW2, db2
+        grads['W3'], grads['b3'] = dW3, db3
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
